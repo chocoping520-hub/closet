@@ -1,0 +1,10 @@
+{
+  "name": "우리동네 직업체험",
+  "description": "다양한 직업의 옷을 입어보고 꿈을 탐구하는 어린이 AR 직업체험관 앱",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

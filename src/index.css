@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Gaegu", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fredoka One", "Gaegu", cursive;
+  --color-vibrant-bg: #FFF9EB;
+  --color-vibrant-coral: #FF6B6B;
+  --color-vibrant-yellow: #FFD93D;
+  --color-vibrant-blue: #4D96FF;
+  --color-vibrant-blue-dark: #2563EB;
+  --color-vibrant-green: #6BCB77;
+  --color-vibrant-green-dark: #3E7C32;
+  --color-vibrant-orange: #FF9F29;
+  --color-vibrant-brown: #8B5E3C;
+  --color-vibrant-peach: #FFF5E1;
+}
+
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 8s linear infinite;
+  }
+}
+
+/* Cute kids custom animations and falling confetti styles */
+.confetti-paper {
+  position: absolute;
+  top: -10px;
+  opacity: 0.85;
+  transform-origin: center;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
