@@ -1,6 +1,35 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Heart, Wand2, Award, Smile, RotateCw, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Sparkles, Heart, Wand2, Award, Smile, RotateCw, ChevronUp, ChevronDown, X, Settings, Volume2 } from "lucide-react";
 import { JOBS_LIST } from "./constants/jobs";
+
+const DEFAULT_VOICE_SETTINGS = {
+  countdownPhrase: "찰칵 사진 찍기 {count}초 전!",
+  shutterPhrase: "치~즈! 찰칵! 📸",
+  savedPhrase: "우와아! 멋진 명예 임명장이 안전하게 제작되어 보관함에 보관되었어요! 상단에 나타난 '방금 만든 임명장 보기' 단추를 눌러서 확인해 봐요! 📜",
+  defaultMatchPhrase: "우와! 머리부터 발끝까지 완벽하게 맞는 {job} 패션이 완성되었어요! 아주 멋져요!",
+  jobScripts: {
+    firefighter: "삐뽀삐뽀! 불이 나면 언제든 출동하여 우리 이웃을 씩씩하게 구해내는 용감한 명예 소방관 패션 완성! 안전지킵이 참 잘했어요!",
+    police: "꼼짝 마라! 우리 동네를 지키는 씩씩하고 정의로운 경찰관 패션을 완성했어요! 우리 동네 안전 지킴이 최고!",
+    doctor: "아픈 곳을 치료해주고 심장 소리를 따뜻하게 보살펴 줄 다정한 명예 의사 가운 완성! 마음씨가 참 고와요!",
+    nurse: "토닥토닥! 아픈 환자들의 곁에서 하트 캡을 쓰고 힘을 주는 친절한 천사표 간호사 패션 완성! 참 잘했어요!",
+    baker: "고소한 빵 냄새가 솔솔! 세상에서 가장 달콤하고 맛있는 빵을 만드는 꼬마 제빵사 대원 완성! 벌써 군침이 돌아요!",
+    zookeeper: "동물이 너무 좋아! 귀여운 판다와 호랑이 친구들을 사랑으로 보살 피는 다정한 동물의 친구 사육사 코디 완성!",
+    ballerina: "샤랄라~ 우아한 날개를 펴듯 아름다운 턴을 돌며 클래식 무대를 환히 밝힐 공주 발레리나 꽃장식 의상 완성!",
+    idol: "반짝이는 무대 위의 최고 스타! 온 세상 어린이에게 노래와 춤으로 사랑을 퍼뜨릴 만능 아이돌 스타 완료!",
+    skating: "얼음 궁전 위를 하얀 날개처럼 쌩쌩 날아오를 우아한 스케이터 요정! 멋진 피겨스케이터 단짝 완성!",
+    mechanic: "철컥철컥! 고장 난 자동차와 기계를 무엇이든지 뚝딱 해결하는 만능 해결사 척척 천재 정비공 대원 완료!",
+    astronaut: "삼, 이, 일, 발사! 은하계를 횡단하여 미지의 별과 우주비행선 수수께끼를 해결할 용감한 소년 우주비행사 완료!",
+    pilot: "안전벨트를 매세요! 구름을 뚫고 끝없는 하늘 정원을 비행할 멋진 선장 캡틴 파일럿 대원 코디 성공!",
+    explorer: "고대 보물 탐색 개시! 깊은 모험의 정글 숲을 씩씩하게 개척할 전설적인 정글 탐험가 모험 의상 완성! 모험 출발!",
+    magician: "수리수리마수리 얍! 오색 비둘기도 날아오르고 꽃봉오리 피어나는 신기방기 만능 엔터 마술사 의복 완성!",
+    scientist: "보글보글 시험 약병을 흔들어 지구 사람들을 더 건강하게 지켜줄 기상천외한 우주 과학자 유니폼 장식 완료!",
+    farmer: "토실토실 알밤 수확! 정직하고 부지런하게 맛있는 야채 과일을 정성으로 수수하는 풍년 농부 대원 조합 성공!",
+    soccer: "슛~ 골인! 바람만큼 날랜 발로 골대를 향해 질주해 나갈 불꽃 슛 자랑스러운 국가대표 축구 선수 완료!",
+    diver: "어푸어푸! 깊은 오색 심해 속 보물 여정과 고래 단짝을 물 지켜 줄 멋진 스쿠버다이버 산소통 장식 완료!",
+    hairstylist: "삭둑삭둑 위이잉! 마법 같은 손짓으로 헤어스타일 개성을 살려줄 전설의 마법 가위 최고 디자이너 미용사 성공!",
+    gamedeveloper: "빛나라 컴퓨터 코드! 어린이들에게 가장 유익하고 신나는 꿈의 게임 세상을 구동할 게임 개발공 완료!"
+  } as Record<string, string>
+};
 import { CameraAR } from "./components/CameraAR";
 import { DreamCard } from "./components/DreamCard";
 import { LocalHistory } from "./components/LocalHistory";
@@ -29,15 +58,39 @@ export default function App() {
   // Track currently selected history record when they wish to re-open a previously saved certificate
   const [selectedHistoryCert, setSelectedHistoryCert] = useState<any | null>(null);
 
+  // Custom customizable voice settings state (persists in localStorage cache as requested!)
+  const [voiceSettings, setVoiceSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem("kids_ar_voice_settings_v1");
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn("Failed to parse voice settings from localStorage", e);
+    }
+    return DEFAULT_VOICE_SETTINGS;
+  });
+
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"photo" | "match">("photo");
+  const [selectedSettingJobId, setSelectedSettingJobId] = useState<string>("firefighter");
+  const [settingsStatusMsg, setSettingsStatusMsg] = useState("");
+
+  // Persists settings to localStorage whenever changed
+  useEffect(() => {
+    try {
+      localStorage.setItem("kids_ar_voice_settings_v1", JSON.stringify(voiceSettings));
+    } catch (e) {
+      console.error("Failed to save voice settings to localStorage", e);
+    }
+  }, [voiceSettings]);
+
   const topJob = JOBS_LIST[selectedTopIndex];
   const bottomJob = JOBS_LIST[selectedBottomIndex];
 
-  // Mascot welcome message
+  // Mascot welcome message - Muted to align strictly with voice scenario restrictions
   useEffect(() => {
-    // Welcoming greeting
-    setTimeout(() => {
-      speakLocal("안녕! 우리동네 에이알 요술옷장에 온 것을 환영해! 마음에 드는 옷들을 골라 입어봐!");
-    }, 1200);
+    // Welcoming greeting muted
   }, []);
 
   const speakLocal = (text: string) => {
@@ -54,7 +107,8 @@ export default function App() {
   const handleSnapshotCaptured = (imageUri: string) => {
     setCapturedImage(imageUri);
     setNewCertificateReady(true);
-    speakLocal("우와아! 멋진 명예 임명장이 안전하게 제작되어 보관함에 보관되었어요! 상단에 나타난 '방금 만든 임명장 보기' 단추를 눌러서 확인해 봐요! 📜");
+    // Immediately display the generated dream certificate as requested!
+    setShowCertificate(true);
   };
 
   const handleReopenHistory = (record: any) => {
@@ -106,7 +160,7 @@ export default function App() {
       osc.stop(audioCtx.currentTime + 0.5);
     } catch {}
 
-    speakLocal(`얍! ${matchTop.title} 상의와 ${matchBottom.title} 하의가 섞여서 마법 조합이 완성되었어!`);
+    // Speech muted to respect "speech only when set completed or taking photos" directive
   };
 
   // For celebration animation
@@ -151,31 +205,47 @@ export default function App() {
       osc.stop(now + 0.9);
     } catch {}
 
-    // Play beautiful children voice-over line
-    const voiceScripts: Record<string, string> = {
-      firefighter: "삐뽀삐뽀! 불이 나면 언제든 출동하여 우리 이웃을 씩씩하게 구해내는 용감한 명예 소방관 패션 완성! 안전지킵이 참 잘했어요!",
-      police: "꼼짝 마라! 우리 동네를 지키는 씩씩하고 정의로운 경찰관 패션을 완성했어요! 우리 동네 안전 지킴이 최고!",
-      doctor: "아픈 곳을 치료해주고 심장 소리를 따뜻하게 보살펴 줄 다정한 명예 의사 가운 완성! 마음씨가 참 고와요!",
-      nurse: "토닥토닥! 아픈 환자들의 곁에서 하트 캡을 쓰고 힘을 주는 친절한 천사표 간호사 패션 완성! 참 잘했어요!",
-      baker: "고소한 빵 냄새가 솔솔! 세상에서 가장 달콤하고 맛있는 빵을 만드는 꼬마 제빵사 대원 완성! 벌써 군침이 돌아요!",
-      zookeeper: "동물이 너무 좋아! 귀여운 판다와 호랑이 친구들을 사랑으로 보살 피는 다정한 동물의 친구 사육사 코디 완성!",
-      ballerina: "샤랄라~ 우아한 날개를 펴듯 아름다운 턴을 돌며 클래식 무대를 환히 밝힐 공주 발레리나 꽃장식 의상 완성!",
-      idol: "반짝이는 무대 위의 최고 스타! 온 세상 어린이에게 노래와 춤으로 사랑을 퍼뜨릴 만능 아이돌 스타 완료!",
-      skating: "얼음 궁전 위를 하얀 날개처럼 쌩쌩 날아오를 우아한 스케이터 요정! 멋진 피겨스케이터 단짝 완성!",
-      mechanic: "철컥철컥! 고장 난 자동차와 기계를 무엇이든지 뚝딱 해결하는 만능 해결사 척척 천재 정비공 대원 완료!",
-      astronaut: "삼, 이, 일, 발사! 은하계를 횡단하여 미지의 별과 우주비행선 수수께끼를 해결할 용감한 소년 우주비행사 완료!",
-      pilot: "안전벨트를 매세요! 구름을 뚫고 끝없는 하늘 정원을 비행할 멋진 선장 캡틴 파일럿 대원 코디 성공!",
-      explorer: "고대 보물 탐색 개시! 깊은 모험의 정글 숲을 씩씩하게 개척할 전설적인 정글 탐험가 모험 의상 완성! 모험 출발!",
-      magician: "수리수리마수리 얍! 오색 비둘기도 날아오르고 꽃봉오리 피어나는 신기방기 만능 엔터 마술사 의복 완성!",
-      scientist: "보글보글 시험 약병을 흔들어 지구 사람들을 더 건강하게 지켜줄 기상천외한 우주 과학자 유니폼 장식 완료!",
-      farmer: "토실토실 알밤 수확! 정직하고 부지런하게 맛있는 야채 과일을 정성으로 수수하는 풍년 농부 대원 조합 성공!",
-      soccer: "슛~ 골인! 바람만큼 날랜 발로 골대를 향해 질주해 나갈 불꽃 슛 자랑스러운 국가대표 축구 선수 완료!",
-      diver: "어푸어푸! 깊은 오색 심해 속 보물 여정과 고래 단짝을 물 지켜 줄 멋진 스쿠버다이버 산소통 장식 완료!",
-      hairstylist: "삭둑삭둑 위이잉! 마법 같은 손짓으로 헤어스타일 개성을 살려줄 전설의 마법 가위 최고 디자이너 미용사 성공!",
-      gamedeveloper: "빛나라 컴퓨터 코드! 어린이들에게 가장 유익하고 신나는 꿈의 게임 세상을 구동할 게임 개발공 완료!"
-    };
+    // Play beautiful children voice-over line from customizable voice settings
+    const voiceScripts = voiceSettings.jobScripts || {};
+    let koreanMsg = voiceScripts[job.id];
+    if (koreanMsg === undefined) {
+      // Fallback defaults to standard job script values if they haven't been customized/altered
+      const defaultScripts: Record<string, string> = {
+        firefighter: "삐뽀삐뽀! 불이 나면 언제든 출동하여 우리 이웃을 씩씩하게 구해내는 용감한 명예 소방관 패션 완성! 안전지킵이 참 잘했어요!",
+        police: "꼼짝 마라! 우리 동네를 지키는 씩씩하고 정의로운 경찰관 패션을 완성했어요! 우리 동네 안전 지킴이 최고!",
+        doctor: "아픈 곳을 치료해주고 심장 소리를 따뜻하게 보살펴 줄 다정한 명예 의사 가운 완성! 마음씨가 참 고와요!",
+        nurse: "토닥토닥! 아픈 환자들의 곁에서 하트 캡을 쓰고 힘을 주는 친절한 천사표 간호사 패션 완성! 참 잘했어요!",
+        baker: "고소한 빵 냄새가 솔솔! 세상에서 가장 달콤하고 맛있는 빵을 만드는 꼬마 제빵사 대원 완성! 벌써 군침이 돌아요!",
+        zookeeper: "동물이 너무 좋아! 귀여운 판다와 호랑이 친구들을 사랑으로 보살 피는 다정한 동물의 친구 사육사 코디 완성!",
+        ballerina: "샤랄라~ 우아한 날개를 펴듯 아름다운 턴을 돌며 클래식 무대를 환히 밝힐 공주 발레리나 꽃장식 의상 완성!",
+        idol: "반짝이는 무대 위의 최고 스타! 온 세상 어린이에게 노래와 춤으로 사랑을 퍼뜨릴 만능 아이돌 스타 완료!",
+        skating: "얼음 궁전 위를 하얀 날개처럼 쌩쌩 날아오를 우아한 스케이터 요정! 멋진 피겨스케이터 단짝 완성!",
+        mechanic: "철컥철컥! 고장 난 자동차와 기계를 무엇이든지 뚝딱 해결하는 만능 해결사 척척 천재 정비공 대원 완료!",
+        astronaut: "삼, 이, 일, 발사! 은하계를 횡단하여 미지의 별과 우주비행선 수수께끼를 해결할 용감한 소년 우주비행사 완료!",
+        pilot: "안전벨트를 매세요! 구름을 뚫고 끝없는 하늘 정원을 비행할 멋진 선장 캡틴 파일럿 대원 코디 성공!",
+        explorer: "고대 보물 탐색 개시! 깊은 모험 of 정글 숲을 씩씩하게 개척할 전설적인 정글 탐험가 모험 의상 완성! 모험 출발!",
+        magician: "수리수리마수리 얍! 오색 비둘기도 날아오르고 꽃봉오리 피어나는 신기방기 만능 엔터 마술사 의복 완성!",
+        scientist: "보글보글 시험 약병을 흔들어 지구 사람들을 더 건강하게 지켜줄 기상천외한 우주 과학자 유니폼 장식 완료!",
+        farmer: "토실토실 알밤 수확! 정직하고 부지런하게 맛있는 야채 과일을 정성으로 수수하는 풍년 농부 대원 조합 성공!",
+        soccer: "슛~ 골인! 바람만큼 날랜 발로 골대를 향해 질주해 나갈 불꽃 슛 자랑스러운 국가대표 축구 선수 완료!",
+        diver: "어푸어푸! 깊은 오색 심해 속 보물 여정과 고래 단짝을 물 지켜 줄 멋진 스쿠버다이버 산소통 장식 완료!",
+        hairstylist: "삭둑삭둑 위이잉! 마법 같은 손짓으로 헤어스타일 개성을 살려줄 전설의 마법 가위 최고 디자이너 미용사 성공!",
+        gamedeveloper: "빛나라 컴퓨터 코드! 어린이들에게 가장 유익하고 신나는 꿈의 게임 세상을 구동할 게임 개발공 완료!"
+      };
+      koreanMsg = defaultScripts[job.id] || `우와! 머리부터 발끝까지 완벽하게 맞는 ${job.title} 패션이 완성되었어요! 아주 멋져요!`;
+    }
 
-    const koreanMsg = voiceScripts[job.id] || `우와! 머리부터 발끝까지 완벽하게 맞는 ${job.title} 패션이 완성되었어요! 아주 멋져요!`;
+    // Replace dynamic job marker in template
+    if (koreanMsg.includes("{job}")) {
+      koreanMsg = koreanMsg.replace("{job}", job.title);
+    }
+    
+    // Fallback template matching if custom matched script is completely empty
+    if (!koreanMsg.trim()) {
+      const template = voiceSettings.defaultMatchPhrase || "우와! 머리부터 발끝까지 완벽하게 맞는 {job} 패션이 완성되었어요! 아주 멋져요!";
+      koreanMsg = template.replace("{job}", job.title);
+    }
+
     speakLocal(koreanMsg);
 
     // Set visual celebration state!
@@ -215,7 +285,6 @@ export default function App() {
                 id="btn-open-just-captured"
                 onClick={() => {
                   setShowCertificate(true);
-                  speakLocal("방금 도민 위원회에서 발송한 따끈따끈한 소중한 임명장을 우편함에서 개봉합니다! 우와아!");
                 }}
                 className="flex items-center gap-1.5 bg-vibrant-coral hover:bg-rose-600 text-white font-extrabold px-4 py-1.5 rounded-full text-xs shadow-md border-b-4 border-red-800 active:translate-y-0.5 transition outline-hidden cursor-pointer animate-pulse"
               >
@@ -228,12 +297,23 @@ export default function App() {
               id="btn-open-locker"
               onClick={() => {
                 setShowHistoryModal(true);
-                speakLocal("내 명예 임명장 보관함의 두터운 책을 펼칩니다! 🎒");
               }}
               className="flex items-center gap-1.5 bg-vibrant-blue hover:bg-sky-600 text-white font-extrabold px-4 py-1.5 rounded-full text-xs shadow-md border-b-4 border-blue-800 active:translate-y-0.5 transition outline-hidden cursor-pointer"
             >
               <Award className="w-3.5 h-3.5 animate-bounce" />
               <span>내 임명장 보관함 🎒</span>
+            </button>
+
+            <button
+              id="btn-open-settings"
+              onClick={() => {
+                setShowSettingsModal(true);
+                setSettingsStatusMsg("");
+              }}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-amber-200 font-extrabold px-4 py-1.5 rounded-full text-xs shadow-md active:translate-y-0.5 transition outline-hidden cursor-pointer"
+            >
+              <Settings className="w-3.5 h-3.5 text-[#4F46E5] animate-spin-slow" />
+              <span>음성 대사 설정 ⚙️</span>
             </button>
 
             <button
@@ -260,9 +340,9 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="flex items-center gap-1 bg-vibrant-peach border-2 border-vibrant-yellow rounded-full px-3 py-1.5 w-full md:w-36">
-                <span className="text-[11px] text-vibrant-brown font-black select-none">이름:</span>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:flex-1 md:justify-end">
+              <div className="flex items-center gap-1 bg-vibrant-peach border-2 border-vibrant-yellow rounded-full px-3.5 py-2 w-full md:max-w-[160px]">
+                <span className="text-[11px] text-vibrant-brown font-black select-none shrink-0">이름:</span>
                 <input
                   id="input-kid-name"
                   type="text"
@@ -275,8 +355,8 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex items-center gap-1 bg-vibrant-peach border-2 border-vibrant-yellow rounded-full px-3 py-1.5 w-full md:w-64">
-                <span className="text-[11px] text-vibrant-brown font-black select-none">다짐:</span>
+              <div className="flex items-center gap-1 bg-vibrant-peach border-2 border-vibrant-yellow rounded-full px-3.5 py-2 w-full md:flex-1 md:max-w-[420px]">
+                <span className="text-[11px] text-vibrant-brown font-black select-none shrink-0">다짐:</span>
                 <input
                   id="input-kid-vow"
                   type="text"
@@ -308,7 +388,7 @@ export default function App() {
             </div>
 
             {/* Interactive Fitting Booth Center Row */}
-            <div className="flex flex-row items-center justify-center gap-4 md:gap-8 w-full max-w-5xl mx-auto">
+            <div className="flex flex-row items-center justify-center gap-4 md:gap-8 w-full max-w-6xl mx-auto">
               
               {/* LEFT COLUMN: Bottom Outfit Selector Arrows */}
               <div className="flex flex-col items-center justify-center gap-5">
@@ -334,11 +414,14 @@ export default function App() {
               </div>
 
               {/* CENTER FITTING BOOTH CAMERA */}
-              <div className="flex-1 max-w-2xl">
+              <div className="flex-1 max-w-4xl w-full">
                 <CameraAR
                   topJob={topJob}
                   bottomJob={bottomJob}
                   onSnapshot={handleSnapshotCaptured}
+                  voiceSettings={voiceSettings}
+                  hasCaptured={capturedImage !== null}
+                  onOpenCertificate={() => setShowCertificate(true)}
                 />
               </div>
 
@@ -380,7 +463,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setHintPage(0);
-                      speakLocal("가이드북 1페이지 꿈나무 직업 15가지를 열었습니다!");
                     }}
                     className={`px-3 py-1 text-[11px] font-black rounded-lg border transition duration-250 cursor-pointer ${
                       hintPage === 0
@@ -393,7 +475,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setHintPage(1);
-                      speakLocal("가이드북 2페이지 미래 직업 15가지를 열었습니다!");
                     }}
                     className={`px-3 py-1 text-[11px] font-black rounded-lg border transition duration-250 cursor-pointer ${
                       hintPage === 1
@@ -414,7 +495,6 @@ export default function App() {
                     id={`btn-hint-${job.id}`}
                     onClick={() => {
                       setActiveHintJob(job);
-                      speakLocal(`${job.title} 의상 가이드 팝업을 열었습니다! 어떤 옷들과 요정 신발 세트가 있는지 입혀봐요!`);
                     }}
                     className={`w-9 h-9 rounded-full flex items-center justify-center text-xl transition duration-200 hover:scale-115 active:scale-90 shadow-sm outline-hidden cursor-pointer ${
                       activeHintJob?.id === job.id
@@ -521,7 +601,6 @@ export default function App() {
                 if (matchedIdx !== -1) {
                   setSelectedTopIndex(matchedIdx);
                   setSelectedBottomIndex(matchedIdx);
-                  speakLocal(`화라락! 마법 요술로 ${activeHintJob.title} 가이드를 단번에 장착했어요!`);
                   setActiveHintJob(null); // Close popup
                 }
               }}
@@ -578,6 +657,218 @@ export default function App() {
         </div>
       )}
 
+      {/* OVERLAY POPUP: VOICE / TEXT SPEECH SETTINGS CONTROL PANEL */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-[40px] border-8 border-[#4F46E5] w-full max-w-2xl max-h-[92vh] overflow-hidden p-6 md:p-8 flex flex-col relative shadow-2xl animate-in zoom-in duration-300">
+            
+            {/* Close Button */}
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-full transition z-10 cursor-pointer outline-hidden border border-slate-350"
+              title="설정 닫기"
+            >
+              <X className="w-5 h-5 stroke-[2.5]" />
+            </button>
+
+            {/* Header Title */}
+            <div className="flex items-center gap-3 border-b-4 border-[#4F46E5] pb-4 mb-4">
+              <div className="w-11 h-11 bg-[#4F46E5] rounded-xl flex items-center justify-center text-white text-2xl shadow-sm">
+                ⚙️
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-vibrant-brown">구연동화 음성 및 대사 설정창</h2>
+                <p className="text-[10px] text-slate-400 font-bold mt-0.5">옷 세트를 완성하거나 사진 찍을 때 읽을 동화 구연 대사를 직접 수정해 봐요!</p>
+              </div>
+            </div>
+
+            {/* Tab switchers */}
+            <div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSettingsTab("photo")}
+                className={`flex-1 py-3 text-xs font-black rounded-xl transition ${
+                  settingsTab === "photo" 
+                    ? "bg-[#4F46E5] text-white shadow-sm" 
+                    : "text-slate-600 hover:bg-slate-50 cursor-pointer"
+                }`}
+              >
+                📸 사진 촬영 음성 구절 
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab("match")}
+                className={`flex-1 py-3 text-xs font-black rounded-xl transition ${
+                  settingsTab === "match" 
+                    ? "bg-[#4F46E5] text-white shadow-sm" 
+                    : "text-slate-600 hover:bg-slate-50 cursor-pointer"
+                }`}
+              >
+                👚 옷 조합 완성 축하 대사
+              </button>
+            </div>
+
+            {/* Config Fields Form */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {settingsTab === "photo" ? (
+                <div className="space-y-4">
+                  {/* Countdown text */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <label className="block text-xs font-black text-slate-705 mb-1.5 flex flex-wrap items-center gap-1">
+                      <span>⏱️ 사진 촬영 카운트다운 안내 음성</span>
+                      <span className="text-[10px] font-semibold text-slate-400">({`{count}`} 기호는 자동으로 숫자로 바뀌어요!)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={voiceSettings.countdownPhrase}
+                      onChange={(e) => setVoiceSettings({ ...voiceSettings, countdownPhrase: e.target.value })}
+                      placeholder="예) 사진찍기 {count}초 전!"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+
+                  {/* Shutter phrase */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <label className="block text-xs font-black text-slate-705 mb-1.5">
+                      📸 찰칵 사진 촬영 시 순간 외치기 소리
+                    </label>
+                    <input
+                      type="text"
+                      value={voiceSettings.shutterPhrase}
+                      onChange={(e) => setVoiceSettings({ ...voiceSettings, shutterPhrase: e.target.value })}
+                      placeholder="예) 치~즈! 찰칵!"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+
+                  {/* Saved phrase */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <label className="block text-xs font-black text-slate-705 mb-1.5">
+                      📜 임명장 사진 캡처 성공 안내 낭독
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={voiceSettings.savedPhrase}
+                      onChange={(e) => setVoiceSettings({ ...voiceSettings, savedPhrase: e.target.value })}
+                      placeholder="임명장이 보관함에 저장되었을 때 읽어줄 꼬마 요정 안내 대사를 입력하세요."
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[#4F46E5] resize-none"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Default Match phrase */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <label className="block text-xs font-black text-slate-705 mb-1.5 flex flex-wrap items-center gap-1">
+                      <span>🏷️ 기본 매칭 완성 대사 템플릿</span>
+                      <span className="text-[10px] font-semibold text-slate-400">({`{job}`} 기호는 직업 명칭으로 치환됩니다!)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={voiceSettings.defaultMatchPhrase}
+                      onChange={(e) => setVoiceSettings({ ...voiceSettings, defaultMatchPhrase: e.target.value })}
+                      placeholder="예) 우와! 완벽하게 맞는 {job} 패션 완성!"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+
+                  {/* Selection Specific Job Script */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-[#4F46E5]/40 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-200 pb-2">
+                      <label className="block text-xs font-black text-slate-700">
+                        🎖️ 직업별 개별 전용 구연동화 대사 수정
+                      </label>
+                      <select
+                        value={selectedSettingJobId}
+                        onChange={(e) => setSelectedSettingJobId(e.target.value)}
+                        className="bg-white border border-slate-300 rounded-lg text-xs font-bold px-2 py-1 text-slate-800 outline-none focus:border-[#4F46E5] cursor-pointer"
+                      >
+                        {JOBS_LIST.map(j => (
+                          <option key={j.id} value={j.id}>
+                            {j.emoji} {j.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-indigo-700">
+                          [{JOBS_LIST.find(j => j.id === selectedSettingJobId)?.title}] 직업의 수록 대사 수정:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedScripts = { ...voiceSettings.jobScripts };
+                            delete updatedScripts[selectedSettingJobId];
+                            setVoiceSettings({ ...voiceSettings, jobScripts: updatedScripts });
+                            setSettingsStatusMsg("해당 직업 대사가 기본 기획 동화 구절로 리셋되었습니다! 🌠");
+                            setTimeout(() => setSettingsStatusMsg(""), 3000);
+                          }}
+                          className="text-[10px] text-vibrant-coral hover:underline font-extrabold cursor-pointer"
+                        >
+                          이 직업 대사 기본값 복원 ↺
+                        </button>
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={voiceSettings.jobScripts[selectedSettingJobId] !== undefined ? voiceSettings.jobScripts[selectedSettingJobId] : ""}
+                        placeholder="이곳에 이 직업만의 오색찬란한 전용 축하 대사를 자유롭게 작성하세요! 입력하지 않으면 위 기본 매칭 완성 대사가 사용되거나, 사전 기입된 기본 동화 구절이 사용됩니다."
+                        onChange={(e) => {
+                          const updatedScripts = { ...voiceSettings.jobScripts };
+                          updatedScripts[selectedSettingJobId] = e.target.value;
+                          setVoiceSettings({ ...voiceSettings, jobScripts: updatedScripts });
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[#4F46E5] resize-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom buttons strip */}
+            <div className="mt-6 border-t border-slate-200 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-[11px] font-bold text-[#4F46E5]">
+                {settingsStatusMsg && <span className="animate-pulse bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-indigo-800">{settingsStatusMsg}</span>}
+              </div>
+
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoiceSettings(DEFAULT_VOICE_SETTINGS);
+                    setSettingsStatusMsg("모든 음성 설정이 마법의 도록 기본값으로 초기화되었습니다! 🌀");
+                    setTimeout(() => setSettingsStatusMsg(""), 3000);
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-full font-bold text-xs border border-slate-300 transition cursor-pointer"
+                >
+                  기본값 복원 ↺
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.setItem("kids_ar_voice_settings_v1", JSON.stringify(voiceSettings));
+                    } catch {}
+                    setSettingsStatusMsg("저장 성공! 브라우저 캐시에 영구 저장 완료! 💾");
+                    speakLocal("새로운 설정 대사들이 안전하게 옷장 일지에 기록되었습니다!");
+                    setTimeout(() => {
+                      setSettingsStatusMsg("");
+                      setShowSettingsModal(false);
+                    }, 2000);
+                  }}
+                  className="flex-1 sm:flex-none px-6 py-2.5 bg-vibrant-blue text-white rounded-full font-extrabold text-xs shadow-md border-b-4 border-blue-900 active:translate-y-0.5 hover:scale-105 active:scale-95 transition cursor-pointer"
+                >
+                  설정 저장하기 💾
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* CELEBRATION MODORAMA INSPIRED POPUP OVERLAY */}
       {showCelebration && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-xs z-55 animate-fade-in">
@@ -588,9 +879,9 @@ export default function App() {
             <div className="mt-8">
               <span className="bg-vibrant-coral text-white font-black px-4 py-1 rounded-full text-xs animate-pulse">코디 정답 합격! ✨</span>
               <h3 className="text-2xl font-black text-vibrant-brown mt-3">명예 {JOBS_LIST[selectedTopIndex].title}</h3>
-              <p className="text-xs text-slate-500 font-extrabold mt-2 leading-relaxed">
-                상의와 하의의 직업 짝꿍을 완벽히 맞췄어요! <br />
-                지혜로운 직업 축하 구연동화가 흘러나옵니다!
+              <p className="text-sm text-slate-600 font-extrabold mt-3 leading-relaxed">
+                짝짝짝! 참 잘했어요! <br />
+                당신을 명예 <span className="text-vibrant-coral font-black">{JOBS_LIST[selectedTopIndex].title}</span>(으)로 임명합니다! 🏅
               </p>
               <span className="text-5xl mt-4 block">{JOBS_LIST[selectedTopIndex].emoji}</span>
               

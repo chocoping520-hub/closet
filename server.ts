@@ -136,7 +136,93 @@ app.post("/api/analyze-costume", async (req, res) => {
   }
 });
 
-// 2. API: Generate cheerful, high-quality audio using Gemini TTS
+// 2. API: Detect face bounding box using Gemini Vision
+app.post("/api/detect-face", async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: "Image field is required" });
+    }
+
+    if (!ai) {
+      console.log("Server: Gemini API client not available for face detection; returning fallback coordinate.");
+      return res.json({
+        success: false,
+        faceX: 50,
+        faceY: 35,
+        faceWidth: 25,
+        faceHeight: 25,
+        noseY: 38,
+        message: "Gemini server client not authorized"
+      });
+    }
+
+    const base64Data = image.split("base64,")[1] || image;
+    const mimeType = image.split(";")[0]?.split(":")[1]?.split(";")[0] || "image/jpeg";
+
+    console.log(`Server: Detecting face with ${mimeType} via gemini-3.5-flash...`);
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        {
+          inlineData: {
+            mimeType,
+            data: base64Data,
+          },
+        },
+        {
+          text: `You are an expert human face locator AI helper.
+Analyze this video snapshot frame from our child-friendly AR dressing room.
+Detect the MAIN human face (typically a child's face) present in the frame.
+Identify its center coordinate and physical size.
+
+Return JSON in this EXACT schema format:
+{
+  "success": true,
+  "faceX": <number, 0 to 100, representing the horizontal center X of the face, where 0 is left and 100 is right>,
+  "faceY": <number, 0 to 100, representing the vertical center Y of the face, where 0 is top and 100 is bottom>,
+  "faceWidth": <number, 0 to 100, width of the face in percentage of overall image width>,
+  "faceHeight": <number, 0 to 100, height of the face in percentage of overall image height>,
+  "noseY": <number, 0 to 100, vertical coordinate of the nose/lips boundary to anchor neckwear perfectly>
+}
+
+If no human face is detected or you are unsure, set success to false and return placeholders:
+{"success": false, "faceX": 50, "faceY": 35, "faceWidth": 25, "faceHeight": 25, "noseY": 38}
+
+Do not include other text, explanation, or markdown backticks inside your answer. Output MUST be pure JSON.`
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            success: { type: Type.BOOLEAN },
+            faceX: { type: Type.NUMBER },
+            faceY: { type: Type.NUMBER },
+            faceWidth: { type: Type.NUMBER },
+            faceHeight: { type: Type.NUMBER },
+            noseY: { type: Type.NUMBER }
+          },
+          required: ["success", "faceX", "faceY", "faceWidth", "faceHeight", "noseY"]
+        }
+      }
+    });
+
+    const textOutput = response.text || "{}";
+    const parsedData = JSON.parse(textOutput.trim());
+    return res.json({
+      ...parsedData,
+      success: parsedData.success !== false
+    });
+
+  } catch (error: any) {
+    console.error("Server: Error during face detection:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// 3. API: Generate cheerful, high-quality audio using Gemini TTS
 app.post("/api/tts", async (req, res) => {
   try {
     const { text } = req.body;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Award, Volume2, Download, Share2, Sparkles, X, RotateCcw, Heart, Loader2 } from "lucide-react";
+import { toPng } from "html-to-image";
 import { MergedCostumeRenderer } from "./JobSVGRenderers";
 import { Job } from "../types";
 
@@ -35,6 +36,20 @@ export const DreamCard: React.FC<DreamCardProps> = ({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [localAudioUrl, setLocalAudioUrl] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [isSavingImage, setIsSavingImage] = useState(false);
+
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  // Stop sound if unmounted
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   // Trigger Gemini API to analyze the costume and fetch certificate details
   useEffect(() => {
@@ -75,7 +90,26 @@ export const DreamCard: React.FC<DreamCardProps> = ({
 
     } catch (err: any) {
       console.error("DreamCard: Failed to load custom certificate:", err);
-      setError(err?.message || "네트워크 연결이 지연되고 있어서 오프라인 카드를 만들어 드렸어요!");
+      const defaultRecipient = userName ? userName.trim() : "자랑스러운 어린이";
+      const mergedJobName = topJob.id === bottomJob.id ? topJob.title : `명예 ${topJob.title} ${bottomJob.title}`;
+      const fallbackStory = `${defaultRecipient} 대원님은 오늘 멋진 ${topJob.title} 옷과 신나는 ${bottomJob.title} 장비를 멋지게 완성하여 우리 동네의 소중한 명예 영웅이 되었습니다! 언제나 큰 꿈을 마음에 품고 주변 이웃을 돕는 다정하고 용감한 어린이로 자라나기를 든든하게 응원해요!`;
+      const fallbackEncouragement = `${defaultRecipient}님의 활기찬 미소가 우리 동네를 참 아름답게 밝혀준답니다!`;
+
+      const offlineDoc: CertificateData = {
+        recipientName: defaultRecipient,
+        jobTitle: mergedJobName,
+        accomplishmentStory: fallbackStory,
+        encouragement: fallbackEncouragement,
+        audioText: `안녕, ${defaultRecipient}! 멋진 ${topJob.title} 옷을 입은 너의 모습이 날아갈 듯 멋지구나! 정식 명예 ${mergedJobName} 대원이 된 것을 정말 축하해!`,
+        isOfflineMode: true
+      };
+
+      setData(offlineDoc);
+      saveToBrowserDatabaseHistory(offlineDoc);
+
+      setTimeout(() => {
+        speakContent(offlineDoc.audioText);
+      }, 500);
     } finally {
       setLoading(false);
     }
@@ -111,13 +145,15 @@ export const DreamCard: React.FC<DreamCardProps> = ({
   };
 
   const speakContent = async (text: string) => {
+    // If already playing, stop and return immediately (complete toggle control)
     if (isPlayingAudio) {
-      if (localAudioUrl) {
-        // Stop current play if any
-        window.speechSynthesis.cancel();
-        setIsPlayingAudio(false);
-        return;
+      window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
       }
+      setIsPlayingAudio(false);
+      return;
     }
 
     setIsPlayingAudio(true);
@@ -143,12 +179,27 @@ export const DreamCard: React.FC<DreamCardProps> = ({
           const audioUrl = URL.createObjectURL(blob);
           setLocalAudioUrl(audioUrl);
 
+          if (audioRef.current) {
+            audioRef.current.pause();
+          }
+
           const sound = new Audio(audioUrl);
-          sound.play();
-          sound.onended = () => {
+          audioRef.current = sound;
+          
+          try {
+            await sound.play();
+            sound.onended = () => {
+              setIsPlayingAudio(false);
+              audioRef.current = null;
+            };
+            return;
+          } catch (playErr) {
+            console.warn("Autoplay blocked or playback aborted by browser:", playErr);
             setIsPlayingAudio(false);
-          };
-          return;
+            audioRef.current = null;
+            // Fall back immediately to client-side speech API if user actually triggered it
+            // or just recover state gracefully so it can be manually tapped.
+          }
         }
       }
     } catch {
@@ -167,30 +218,56 @@ export const DreamCard: React.FC<DreamCardProps> = ({
       utterance.onerror = () => {
         setIsPlayingAudio(false);
       };
-      window.speechSynthesis.speak(utterance);
+      
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (speakErr) {
+        console.warn("SpeechSynthesis speak blocked:", speakErr);
+        setIsPlayingAudio(false);
+      }
     } else {
       setIsPlayingAudio(false);
     }
   };
 
-  // Safe download of the generated appointment card image
+  // Safe download of the generated HTML appointment certificate card as an image
   const handleDownload = () => {
-    if (!capturedImage) {
-      // Create mockup canvas if no webcam snap exists, downloading of direct vector is easy too
-      const link = document.createElement("a");
-      link.download = `우리동네_임명장_${userName || "꼬마영웅"}.txt`;
-      link.href = "data:text/plain;charset=utf-8," + encodeURIComponent(
-        `[ 우리동네 명예 임명장 ]\n임명 대상: ${data?.recipientName}\n직업 명칭: ${data?.jobTitle}\n\n활약상:\n${data?.accomplishmentStory}\n\n격려:\n${data?.encouragement}`
-      );
-      link.click();
+    const node = document.getElementById("printed-certificate-sheet");
+    if (!node) {
+      if (capturedImage) {
+        const link = document.createElement("a");
+        link.download = `우리동네_AR직업임명장_${userName || "꼬마영웅"}.png`;
+        link.href = capturedImage;
+        link.click();
+      }
       return;
     }
 
-    // Trigger local anchor downloads
-    const link = document.createElement("a");
-    link.download = `우리동네_AR직업임명장_${userName || "꼬마영웅"}.png`;
-    link.href = capturedImage;
-    link.click();
+    setIsSavingImage(true);
+
+    toPng(node, {
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+      pixelRatio: 2, // 2x sharp high definition scale
+    })
+      .then((dataUrl) => {
+        const link = document.createElement("a");
+        link.download = `우리동네_AR직업임명장_${userName || "꼬마영웅"}.png`;
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.error("html-to-image download failed. Falling back to simple captured image.", err);
+        if (capturedImage) {
+          const link = document.createElement("a");
+          link.download = `우리동네_AR직업임명장_${userName || "꼬마영웅"}.png`;
+          link.href = capturedImage;
+          link.click();
+        }
+      })
+      .finally(() => {
+        setIsSavingImage(false);
+      });
   };
 
   const handleShare = () => {
@@ -333,10 +410,15 @@ export const DreamCard: React.FC<DreamCardProps> = ({
               <button
                 id="btn-download-cert"
                 onClick={handleDownload}
-                className="flex items-center gap-1.5 px-6 py-2.5 bg-vibrant-green hover:bg-[#58af62] text-white rounded-full font-extrabold text-sm shadow-md border-b-4 border-emerald-800 transition active:translate-y-0.5 active:scale-95"
+                disabled={isSavingImage}
+                className="flex items-center gap-1.5 px-6 py-2.5 bg-vibrant-green hover:bg-[#58af62] disabled:bg-slate-400 text-white rounded-full font-extrabold text-sm shadow-md border-b-4 border-emerald-800 disabled:border-slate-600 transition active:translate-y-0.5 active:scale-95 disabled:translate-y-0 disabled:scale-100"
               >
-                <Download className="w-4 h-4" />
-                <span>기기에 사진 저장 💾</span>
+                {isSavingImage ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span>{isSavingImage ? "그림 제작 중... 💾" : "기기에 임명장 저장 💾"}</span>
               </button>
 
               <button

@@ -1,8 +1,15 @@
+@font-face {
+  font-family: 'Gyeombalbal';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_11-01@1.0/insungitCutelivelyjisu.woff2') format('woff2');
+  font-weight: normal;
+  font-display: swap;
+}
+
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", "Gaegu", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fredoka One", "Gaegu", cursive;
+  --font-sans: "Gyeombalbal", "Inter", "Gaegu", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Gyeombalbal", "Fredoka One", "Gaegu", cursive;
   --color-vibrant-bg: #FFF9EB;
   --color-vibrant-coral: #FF6B6B;
   --color-vibrant-yellow: #FFD93D;
@@ -13,6 +20,10 @@
   --color-vibrant-orange: #FF9F29;
   --color-vibrant-brown: #8B5E3C;
   --color-vibrant-peach: #FFF5E1;
+}
+
+body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, div, span, strong {
+  font-family: "Gyeombalbal", "Inter", "Gaegu", sans-serif;
 }
 
 @layer utilities {
